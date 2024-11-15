@@ -1,15 +1,14 @@
 library(shiny)
 library(bslib)
 library(ggplot2)
-library(plotly)
+library(plotly)  # Plotly for maps and plots
 library(shinycssloaders)
 library(dplyr)
-library(leaflet)
 library(randomForest)  # For Random Forest model
 library(caret)  # For data splitting and preprocessing
 
 # Load real estate dataset
-project1_data <- read.csv("~/Desktop/mgsc410/Midterm/midtermdata.csv")
+project1_data <- read.csv("midtermdata.csv")
 
 # Define the UI
 ui <- fluidPage(  
@@ -72,8 +71,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       selectInput("bedrooms_select", "Select Number of Bedrooms:",
-                  choices = c("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11",
-                              "12", "14", "32"),
+                  choices = c("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "14", "32"),
                   selected = "1"),
       helpText("Choose a bedroom amount to analyze."),
       sliderInput("lotSize_range", "Select Lot Size (in square feet):",
@@ -104,7 +102,7 @@ ui <- fluidPage(
                    )
                  ),
                  h4("Interactive Map of Homes"),
-                 leafletOutput("map")
+                 plotlyOutput("map")  # Change to plotlyOutput
         ),
         tabPanel("Price Prediction",
                  h4("Predict Home Price with Random Forest Model"),
@@ -170,14 +168,24 @@ server <- function(input, output, session) {
                formatC(avg_price, format = "f", big.mark = ",", digits = 0), "</span>"))
   })
   
-  # Render the interactive map
-  output$map <- renderLeaflet({
+  # Render the interactive map with Plotly
+  output$map <- renderPlotly({
     data <- filtered_home_data()
-    leaflet(data) %>%
-      addTiles() %>%
-      addCircleMarkers(lng = ~longitude, lat = ~latitude, 
-                       radius = 6, color = '#ff66b2', fillOpacity = 0.7,
-                       popup = ~paste("Price: $", price, "<br>Zipcode: ", zipcode))
+    
+    plot_ly(data = data, 
+            lat = ~latitude, lon = ~longitude, 
+            type = 'scattermapbox', 
+            mode = 'markers', 
+            marker = list(size = 8, color = '#ff66b2', opacity = 0.7),
+            text = ~paste("Price: $", price, "<br>Zipcode: ", zipcode)) %>%
+      layout(
+        mapbox = list(
+          style = "open-street-map",  # You can choose a different map style
+          center = list(lat = mean(data$latitude, na.rm = TRUE), 
+                        lon = mean(data$longitude, na.rm = TRUE)),
+          zoom = 10
+        )
+      )
   })
   
   # Train Random Forest model on initial data
@@ -207,4 +215,3 @@ server <- function(input, output, session) {
 
 # Run the application 
 shinyApp(ui = ui, server = server)
-
