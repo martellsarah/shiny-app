@@ -4,7 +4,7 @@ library(ggplot2)
 library(dplyr)
 
 # Load real estate dataset
-project1_data <- read.csv("midtermdata.csv")
+project1_data <- read.csv("/srv/shiny-server/midtermdata.csv")
 
 # Define the UI
 ui <- fluidPage(  
