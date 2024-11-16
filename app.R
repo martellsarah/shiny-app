@@ -1,14 +1,10 @@
 library(shiny)
 library(bslib)
 library(ggplot2)
-library(plotly)  # Plotly for maps and plots
-library(shinycssloaders)
 library(dplyr)
-library(randomForest)  # For Random Forest model
-library(caret)  # For data splitting and preprocessing
 
 # Load real estate dataset
-project1_data <- read.csv("midtermdata.csv")
+project1_data <- read.csv("~/Desktop/mgsc410/Midterm/midtermdata.csv")
 
 # Define the UI
 ui <- fluidPage(  
@@ -35,10 +31,6 @@ ui <- fluidPage(
       background-color: #ff4d94;
       border-color: #ff4d94;
     }
-    .sidebar {
-      background-color: #f4c2c2;
-      color: #333;
-    }
     .metric-box {
       padding: 20px;
       border-radius: 12px;
@@ -56,9 +48,6 @@ ui <- fluidPage(
     .value {
       font-size: 28px;
       font-weight: bold;
-      display: flex;
-      align-items: center;
-      gap: 8px;
       color: black;
     }
   "))
@@ -80,42 +69,14 @@ ui <- fluidPage(
       downloadButton("download_data", "Download Home Data")
     ),
     mainPanel(
-      tabsetPanel(
-        tabPanel("Overview",
-                 h4("Home Summary"),
-                 fluidRow(
-                   column(4, div(class = "metric-box", h4(class = "metric-title", "Price"), uiOutput("price"))),
-                   column(4, div(class = "metric-box", h4(class = "metric-title", "Matching Homes"), uiOutput("matchingHomes"))),
-                   column(4, div(class = "metric-box", h4(class = "metric-title", "State"), uiOutput("state")))
-                 ),
-                 h4("Distribution of Homes Based on Selected Criteria"),
-                 plotOutput("histogram_plot")
-        ),
-        tabPanel("Details",
-                 h4("Detailed Home Information"),
-                 fluidRow(
-                   column(4,
-                          div(class = "metric-box",
-                              h4(class = "metric-title", "Average Price"),
-                              uiOutput("average_price_details")
-                          )
-                   )
-                 ),
-                 h4("Interactive Map of Homes"),
-                 plotlyOutput("map")  # Change to plotlyOutput
-        ),
-        tabPanel("Price Prediction",
-                 h4("Predict Home Price with Random Forest Model"),
-                 fluidRow(
-                   column(4, numericInput("yearBuilt_input", "Year Built", value = 2000, min = 1800, max = 2024)),
-                   column(4, numericInput("bathrooms_input", "Number of Bathrooms", value = 2)),
-                   column(4, numericInput("bedrooms_input", "Number of Bedrooms", value = 3))
-                 ),
-                 actionButton("predict_price", "Predict Price"),
-                 h4("Predicted Price:"),
-                 textOutput("predicted_price")
-        )
-      )
+      h4("Home Summary"),
+      fluidRow(
+        column(4, div(class = "metric-box", h4(class = "metric-title", "Price"), uiOutput("price"))),
+        column(4, div(class = "metric-box", h4(class = "metric-title", "Matching Homes"), uiOutput("matchingHomes"))),
+        column(4, div(class = "metric-box", h4(class = "metric-title", "State"), uiOutput("state")))
+      ),
+      h4("Distribution of Homes Based on Selected Criteria"),
+      plotOutput("histogram_plot")
     )
   )
 )
@@ -125,30 +86,28 @@ server <- function(input, output, session) {
   
   # Reactive expression to filter data based on selected bedrooms and lot size
   filtered_home_data <- reactive({
-    data <- project1_data %>%
+    project1_data %>%
       filter(bedrooms %in% as.numeric(input$bedrooms_select) &
                lotSize >= input$lotSize_range[1] & lotSize <= input$lotSize_range[2])
-    data
   })
   
   # Render price output
   output$price <- renderUI({
     data <- filtered_home_data()
     avg_price <- mean(data$price, na.rm = TRUE)
-    HTML(paste("<span style='font-size: 24px; color: #e75480; font-weight: bold;'>$",
-               formatC(avg_price, format = "f", big.mark = ",", digits = 0), "</span>"))
+    HTML(paste("<span class='value'>$", formatC(avg_price, format = "f", big.mark = ",", digits = 0), "</span>"))
   })
   
   # Render matching homes count
   output$matchingHomes <- renderUI({
     num_homes <- nrow(filtered_home_data())
-    HTML(paste("<span style='font-size: 24px; color: #e75480; font-weight: bold;'>", num_homes, "</span>"))
+    HTML(paste("<span class='value'>", num_homes, "</span>"))
   })
   
   # Render state output
   output$state <- renderUI({
     states <- paste(unique(filtered_home_data()$state), collapse = ", ")
-    HTML(paste("<span style='font-size: 24px; color: #e75480; font-weight: bold;'>", states, "</span>"))
+    HTML(paste("<span class='value'>", states, "</span>"))
   })
   
   # Render histogram
@@ -158,58 +117,6 @@ server <- function(input, output, session) {
       geom_histogram(binwidth = 50000, fill = "#ff66b2", color = "#e75480", alpha = 0.7) +
       labs(title = "Distribution of Home Prices", x = "Price ($)", y = "Number of Homes") +
       theme_minimal()
-  })
-  
-  # Render average price for the "Details" tab
-  output$average_price_details <- renderUI({
-    data <- filtered_home_data()
-    avg_price <- mean(data$price, na.rm = TRUE)
-    HTML(paste("<span style='font-size: 24px; color: #e75480; font-weight: bold;'>$",
-               formatC(avg_price, format = "f", big.mark = ",", digits = 0), "</span>"))
-  })
-  
-  # Render the interactive map with Plotly
-  output$map <- renderPlotly({
-    data <- filtered_home_data()
-    
-    plot_ly(data = data, 
-            lat = ~latitude, lon = ~longitude, 
-            type = 'scattermapbox', 
-            mode = 'markers', 
-            marker = list(size = 8, color = '#ff66b2', opacity = 0.7),
-            text = ~paste("Price: $", price, "<br>Zipcode: ", zipcode)) %>%
-      layout(
-        mapbox = list(
-          style = "open-street-map",  # You can choose a different map style
-          center = list(lat = mean(data$latitude, na.rm = TRUE), 
-                        lon = mean(data$longitude, na.rm = TRUE)),
-          zoom = 10
-        )
-      )
-  })
-  
-  # Train Random Forest model on initial data
-  rf_model <- reactive({
-    set.seed(123)
-    train_data <- project1_data %>%
-      select(price, yearBuilt, bathrooms, bedrooms) %>%
-      na.omit()
-    train_control <- trainControl(method = "cv", number = 5)
-    randomForest(price ~ yearBuilt + bathrooms + bedrooms, data = train_data)
-  })
-  
-  # Predict price based on input values
-  observeEvent(input$predict_price, {
-    model <- rf_model()
-    new_data <- data.frame(
-      yearBuilt = input$yearBuilt_input,
-      bathrooms = input$bathrooms_input,
-      bedrooms = input$bedrooms_input
-    )
-    predicted_price <- predict(model, new_data)
-    output$predicted_price <- renderText({
-      paste0("$", formatC(predicted_price, format = "f", big.mark = ",", digits = 0))
-    })
   })
 }
 
