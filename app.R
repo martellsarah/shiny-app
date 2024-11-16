@@ -4,7 +4,7 @@ library(ggplot2)
 library(dplyr)
 
 # Load real estate dataset
-project1_data <- read.csv("~/Desktop/mgsc410/Midterm/midtermdata.csv")
+project1_data <- read.csv("midtermdata.csv")
 
 # Define the UI
 ui <- fluidPage(  
